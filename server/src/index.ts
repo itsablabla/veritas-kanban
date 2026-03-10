@@ -520,7 +520,7 @@ if (process.env.NODE_ENV === 'production') {
 
   // SPA fallback: serve index.html for any non-API route
   // Express 5 / path-to-regexp v8+ requires named wildcards (fixes #150)
-  app.get('{*path}', (_req, res, next) => {
+  app.get('{*path}', async (_req, res, next) => {
     // Don't serve index.html for API routes or WebSocket
     if (_req.path.startsWith('/api') || _req.path.startsWith('/ws') || _req.path === '/health') {
       return next();
@@ -529,8 +529,8 @@ if (process.env.NODE_ENV === 'production') {
     // Inject the per-request CSP nonce into all <script> tags in the HTML
     // so the browser's nonce-based CSP enforcement allows them to execute.
     const indexPath = path.join(webDistPath, 'index.html');
-    const fs = await import('fs/promises');
-    let html = await fs.readFile(indexPath, 'utf-8');
+    const { readFile } = await import('fs/promises');
+    let html = await readFile(indexPath, 'utf-8');
     const nonce = res.locals.cspNonce as string | undefined;
     if (nonce) {
       html = html.replace(/<script/g, `<script nonce="${nonce}"`);
