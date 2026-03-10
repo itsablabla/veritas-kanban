@@ -494,6 +494,12 @@ if (process.env.NODE_ENV === 'production') {
       immutable: true,
       etag: true,
       lastModified: true,
+      setHeaders(res) {
+        // Helmet sets Cross-Origin-Resource-Policy: same-origin globally, but
+        // static assets served to the same-site SPA need same-site so the
+        // browser can load them as module scripts without CORP blocking.
+        res.set('Cross-Origin-Resource-Policy', 'same-site');
+      },
     })
   );
 
@@ -520,7 +526,17 @@ if (process.env.NODE_ENV === 'production') {
       return next();
     }
     res.set('Cache-Control', 'no-cache');
-    res.sendFile(path.join(webDistPath, 'index.html'));
+    // Inject the per-request CSP nonce into all <script> tags in the HTML
+    // so the browser's nonce-based CSP enforcement allows them to execute.
+    const indexPath = path.join(webDistPath, 'index.html');
+    const fs = await import('fs/promises');
+    let html = await fs.readFile(indexPath, 'utf-8');
+    const nonce = res.locals.cspNonce as string | undefined;
+    if (nonce) {
+      html = html.replace(/<script/g, `<script nonce="${nonce}"`);
+    }
+    res.set('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
   });
 }
 
